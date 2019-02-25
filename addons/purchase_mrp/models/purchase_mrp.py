@@ -5,13 +5,17 @@ from odoo import fields, models
 from odoo.tools import float_compare
 
 
+class MrpProduction(models.Model):
+    _inherit = 'mrp.production'
+
+    def _get_document_iterate_key(self, move_raw_id):
+        return super(MrpProduction, self)._get_document_iterate_key(move_raw_id) or 'created_purchase_line_id'
+
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
-    qty_received = fields.Float(compute='_compute_qty_received', string="Received Qty", store=True)
-
-    def _compute_qty_received(self):
-        super(PurchaseOrderLine, self)._compute_qty_received()
+    def _update_received_qty(self):
+        super(PurchaseOrderLine, self)._update_received_qty()
         for line in self.filtered(lambda x: x.move_ids and x.product_id.id not in x.move_ids.mapped('product_id').ids):
             bom = self.env['mrp.bom']._bom_find(product=line.product_id, company_id=line.company_id.id)
             if bom and bom.type == 'phantom':
@@ -19,26 +23,26 @@ class PurchaseOrderLine(models.Model):
 
     def _get_bom_delivered(self, bom=False):
         self.ensure_one()
-        precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
 
-        # In the case of a kit, we need to check if all components are received or not.
-        # nothing policy. A product can have several BoMs, we don't know which one was used when the
-        # receipt was created.
-        bom_delivered = {}
+        # In the case of a kit, we need to check if all components are shipped. Since the BOM might
+        # have changed, we don't compute the quantities but verify the move state.
         if bom:
-            bom_delivered[bom.id] = False
-            product_uom_qty_bom = self.product_uom._compute_quantity(self.product_qty, bom.product_uom_id) / bom.product_qty
-            boms, lines = bom.explode(self.product_id, product_uom_qty_bom)
-            for bom_line, data in lines:
-                qty = 0.0
-                for move in self.move_ids.filtered(lambda x: x.state == 'done' and x.product_id == bom_line.product_id):
-                    qty += move.product_uom._compute_quantity(move.product_uom_qty, bom_line.product_uom_id)
-                if float_compare(qty, data['qty'], precision_digits=precision) < 0:
-                    bom_delivered[bom.id] = False
-                    break
-                else:
-                    bom_delivered[bom.id] = True
-        if bom_delivered and any(bom_delivered.values()):
-            return self.product_qty
-        elif bom_delivered:
-            return 0.0
+            moves = self.move_ids.filtered(lambda m: m.picking_id and m.picking_id.state != 'cancel')
+            bom_delivered = all([move.state == 'done' for move in moves])
+            if bom_delivered:
+                return self.product_qty
+            else:
+                return 0.0
+
+    def _get_upstream_documents_and_responsibles(self, visited):
+        return [(self.order_id, self.order_id.user_id, visited)]
+
+class StockMove(models.Model):
+    _inherit = 'stock.move'
+
+    def _prepare_phantom_move_values(self, bom_line, quantity):
+        vals = super(StockMove, self)._prepare_phantom_move_values(bom_line, quantity)
+        if self.purchase_line_id:
+            vals['purchase_line_id'] = self.purchase_line_id.id
+        return vals
+

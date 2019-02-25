@@ -24,8 +24,8 @@ class HrEmployee(models.Model):
     pin = fields.Char(string="PIN", default=_default_random_pin, help="PIN used to Check In/Out in Kiosk Mode (if enabled in Configuration).", copy=False)
 
     attendance_ids = fields.One2many('hr.attendance', 'employee_id', help='list of attendances for the employee')
-    last_attendance_id = fields.Many2one('hr.attendance', compute='_compute_last_attendance_id')
-    attendance_state = fields.Selection(string="Attendance", compute='_compute_attendance_state', selection=[('checked_out', "Checked out"), ('checked_in', "Checked in")])
+    last_attendance_id = fields.Many2one('hr.attendance', compute='_compute_last_attendance_id', store=True)
+    attendance_state = fields.Selection(string="Attendance Status", compute='_compute_attendance_state', selection=[('checked_out', "Checked out"), ('checked_in', "Checked in")])
     manual_attendance = fields.Boolean(string='Manual Attendance', compute='_compute_manual_attendance', inverse='_inverse_manual_attendance',
                                        help='The employee will have access to the "My Attendances" menu to check in and out from his session')
 
@@ -34,11 +34,11 @@ class HrEmployee(models.Model):
     @api.multi
     def _compute_manual_attendance(self):
         for employee in self:
-            employee.manual_attendance = employee.user_id.has_group('hr.group_hr_attendance') if employee.user_id else False
+            employee.manual_attendance = employee.user_id.has_group('hr_attendance.group_hr_attendance') if employee.user_id else False
 
     @api.multi
     def _inverse_manual_attendance(self):
-        manual_attendance_group = self.env.ref('hr.group_hr_attendance')
+        manual_attendance_group = self.env.ref('hr_attendance.group_hr_attendance')
         for employee in self:
             if employee.user_id:
                 if employee.manual_attendance:
@@ -49,12 +49,15 @@ class HrEmployee(models.Model):
     @api.depends('attendance_ids')
     def _compute_last_attendance_id(self):
         for employee in self:
-            employee.last_attendance_id = employee.attendance_ids and employee.attendance_ids[0] or False
+            employee.last_attendance_id = self.env['hr.attendance'].search([
+                ('employee_id', '=', employee.id),
+            ], limit=1)
 
     @api.depends('last_attendance_id.check_in', 'last_attendance_id.check_out', 'last_attendance_id')
     def _compute_attendance_state(self):
         for employee in self:
-            employee.attendance_state = employee.last_attendance_id and not employee.last_attendance_id.check_out and 'checked_in' or 'checked_out'
+            att = employee.last_attendance_id.sudo()
+            employee.attendance_state = att and not att.check_out and 'checked_in' or 'checked_out'
 
     @api.constrains('pin')
     def _verify_pin(self):
@@ -74,7 +77,7 @@ class HrEmployee(models.Model):
     @api.multi
     def attendance_manual(self, next_action, entered_pin=None):
         self.ensure_one()
-        if self.env['res.users'].browse(SUPERUSER_ID).has_group('hr_attendance.group_hr_attendance_use_pin') and (self.user_id and self.user_id.id != self._uid or not self.user_id):
+        if not (entered_pin is None) or self.env['res.users'].browse(SUPERUSER_ID).has_group('hr_attendance.group_hr_attendance_use_pin') and (self.user_id and self.user_id.id != self._uid or not self.user_id):
             if entered_pin != self.pin:
                 return {'warning': _('Wrong PIN')}
         return self.attendance_action(next_action)
@@ -88,10 +91,8 @@ class HrEmployee(models.Model):
         self.ensure_one()
         action_message = self.env.ref('hr_attendance.hr_attendance_action_greeting_message').read()[0]
         action_message['previous_attendance_change_date'] = self.last_attendance_id and (self.last_attendance_id.check_out or self.last_attendance_id.check_in) or False
-        if action_message['previous_attendance_change_date']:
-            action_message['previous_attendance_change_date'] = \
-                fields.Datetime.to_string(fields.Datetime.context_timestamp(self, fields.Datetime.from_string(action_message['previous_attendance_change_date'])))
         action_message['employee_name'] = self.name
+        action_message['barcode'] = self.barcode
         action_message['next_action'] = next_action
 
         if self.user_id:

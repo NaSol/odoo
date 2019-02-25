@@ -3,22 +3,23 @@
 # * hr_recruitment_survey
 # 
 # Translators:
-# Ladislav Tomm <tomm@helemik.cz>, 2016
-# Martin Trigaux <mat@odoo.com>, 2016
-# Jaroslav Helemik Nemec <nemec@helemik.cz>, 2016
+# Martin Trigaux, 2018
+# Jaroslav Helemik Nemec <nemec@helemik.cz>, 2018
+# Ladislav Tomm <tomm@helemik.cz>, 2018
+# trendspotter, 2018
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 10.0c\n"
+"Project-Id-Version: Odoo Server saas~11.5\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-09-07 08:57+0000\n"
-"PO-Revision-Date: 2016-09-07 08:57+0000\n"
-"Last-Translator: Jaroslav Helemik Nemec <nemec@helemik.cz>, 2016\n"
+"POT-Creation-Date: 2018-09-18 09:49+0000\n"
+"PO-Revision-Date: 2018-09-18 09:49+0000\n"
+"Last-Translator: trendspotter, 2018\n"
 "Language-Team: Czech (https://www.transifex.com/odoo/teams/41243/cs/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: \n"
 "Language: cs\n"
-"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+"Plural-Forms: nplurals=4; plural=(n == 1 && n % 1 == 0) ? 0 : (n >= 2 && n <= 4 && n % 1 == 0) ? 1: (n % 1 != 0 ) ? 2 : 3;\n"
 
 #. module: hr_recruitment_survey
 #: model:survey.label,value:hr_recruitment_survey.recruitment_1_3_1
@@ -61,14 +62,14 @@ msgid "71+"
 msgstr "71+"
 
 #. module: hr_recruitment_survey
-#: model:ir.ui.view,arch_db:hr_recruitment_survey.crm_case_form_view_job_inherit
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.crm_case_form_view_job_inherit
 msgid ""
 "<span class=\"o_stat_text\">Print</span>\n"
 "                        <span class=\"o_stat_text\">Interview</span>"
 msgstr ""
 
 #. module: hr_recruitment_survey
-#: model:ir.ui.view,arch_db:hr_recruitment_survey.crm_case_form_view_job_inherit
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.crm_case_form_view_job_inherit
 msgid ""
 "<span class=\"o_stat_text\">Start</span>\n"
 "                        <span class=\"o_stat_text\">Interview</span>"
@@ -77,17 +78,17 @@ msgstr ""
 #. module: hr_recruitment_survey
 #: model:survey.question,question:hr_recruitment_survey.recruitment_2_4
 msgid "Activities"
-msgstr "Činnosti"
+msgstr "Aktivity"
 
 #. module: hr_recruitment_survey
-#: model:ir.ui.view,arch_db:hr_recruitment_survey.crm_case_form_view_job_inherit
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.crm_case_form_view_job_inherit
 msgid "Answer related job question"
 msgstr "Odpovědět na otázku o podobných pozicích"
 
 #. module: hr_recruitment_survey
 #: model:ir.model,name:hr_recruitment_survey.model_hr_applicant
 msgid "Applicant"
-msgstr "Uchazeč"
+msgstr "Žadatel"
 
 #. module: hr_recruitment_survey
 #: model:survey.page,title:hr_recruitment_survey.recruitment_1
@@ -95,8 +96,8 @@ msgid "Basic information"
 msgstr "Základní informace"
 
 #. module: hr_recruitment_survey
-#: model:ir.model.fields,help:hr_recruitment_survey.field_hr_applicant_survey_id
-#: model:ir.model.fields,help:hr_recruitment_survey.field_hr_job_survey_id
+#: model:ir.model.fields,help:hr_recruitment_survey.field_hr_applicant__survey_id
+#: model:ir.model.fields,help:hr_recruitment_survey.field_hr_job__survey_id
 msgid ""
 "Choose an interview form for this job position and you will be able to "
 "print/answer this interview from all applicants who apply for this job"
@@ -108,8 +109,8 @@ msgid "Desk space"
 msgstr ""
 
 #. module: hr_recruitment_survey
-#: model:ir.ui.view,arch_db:hr_recruitment_survey.hr_job_survey_inherit
-#: model:ir.ui.view,arch_db:hr_recruitment_survey.view_hr_job_kanban_inherit
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.hr_job_survey_inherit
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.view_hr_job_kanban_inherit
 msgid "Display Interview Form"
 msgstr ""
 
@@ -191,10 +192,15 @@ msgid "Important"
 msgstr "Důležitý"
 
 #. module: hr_recruitment_survey
-#: model:ir.model.fields,field_description:hr_recruitment_survey.field_hr_job_survey_id
-#: model:ir.ui.view,arch_db:hr_recruitment_survey.view_hr_job_kanban_inherit
+#: model:ir.model.fields,field_description:hr_recruitment_survey.field_hr_job__survey_id
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.view_hr_job_kanban_inherit
 msgid "Interview Form"
 msgstr "Formulář pohovoru"
+
+#. module: hr_recruitment_survey
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.res_config_settings_view_form
+msgid "Interview Forms"
+msgstr ""
 
 #. module: hr_recruitment_survey
 #: model:ir.model,name:hr_recruitment_survey.model_hr_job
@@ -217,7 +223,7 @@ msgid "Most important"
 msgstr "Nejdůležitější"
 
 #. module: hr_recruitment_survey
-#: model:ir.ui.view,arch_db:hr_recruitment_survey.view_hr_job_kanban_inherit
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.view_hr_job_kanban_inherit
 msgid "No Interview Form"
 msgstr ""
 
@@ -247,7 +253,7 @@ msgid "Perks such as free parking, gym passes"
 msgstr "Výhody jako parkování zdarma, pernamentky do fitka"
 
 #. module: hr_recruitment_survey
-#: model:ir.ui.view,arch_db:hr_recruitment_survey.crm_case_form_view_job_inherit
+#: model_terms:ir.ui.view,arch_db:hr_recruitment_survey.crm_case_form_view_job_inherit
 msgid "Print interview report"
 msgstr "Vytiskni zápis z pohovoru"
 
@@ -267,7 +273,7 @@ msgid "Regular meetings"
 msgstr "Pravidelné schůzky"
 
 #. module: hr_recruitment_survey
-#: model:ir.model.fields,field_description:hr_recruitment_survey.field_hr_applicant_response_id
+#: model:ir.model.fields,field_description:hr_recruitment_survey.field_hr_applicant__response_id
 msgid "Response"
 msgstr "Ohlas"
 
@@ -282,7 +288,7 @@ msgid "State of the art technology"
 msgstr ""
 
 #. module: hr_recruitment_survey
-#: model:ir.model.fields,field_description:hr_recruitment_survey.field_hr_applicant_survey_id
+#: model:ir.model.fields,field_description:hr_recruitment_survey.field_hr_applicant__survey_id
 msgid "Survey"
 msgstr "Průzkum"
 
@@ -299,10 +305,12 @@ msgid "The answer you entered has an invalid format."
 msgstr "Zadaná odpověď má nesprávný formát."
 
 #. module: hr_recruitment_survey
-#: model:survey.survey,description:hr_recruitment_survey.recruitment_form
+#: model_terms:survey.survey,description:hr_recruitment_survey.recruitment_form
 msgid ""
 "This form is intended to help the responsible of a recruitment interview."
 msgstr ""
+"Tento formulář je určen k tomu, aby pomáhal odpovědnému při přijímacím "
+"pohovoru."
 
 #. module: hr_recruitment_survey
 #: model:survey.question,constr_error_msg:hr_recruitment_survey.recruitment_1_1

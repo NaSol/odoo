@@ -14,5 +14,5 @@
     ],
     'images': ['static/description/icon.png'],
     'installable': True,
-    'license': 'OEEL-1',
+    'post_init_hook': 'create_missing_journal_for_acquirers',
 }

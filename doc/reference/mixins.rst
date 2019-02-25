@@ -77,15 +77,14 @@ to manage followers on your record:
 
 .. rubric:: Posting messages
 
-.. method:: message_post(self, body='', subject=None, message_type='notification', subtype=None, parent_id=False, attachments=None, content_subtype='html', **kwargs)
+.. method:: message_post(self, body='', subject=None, message_type='notification', subtype=None, parent_id=False, attachments=None, **kwargs)
     
     Post a new message in an existing thread, returning the new
     mail.message ID.
     
     :param str body: body of the message, usually raw HTML that will
         be sanitized
-    :param str message_type: see mail_message.type field
-    :param str content_subtype: if plaintext: convert body into html
+    :param str message_type: see mail_message.message_type field
     :param int parent_id: handle reply to a previous message by adding the
         parent partners to the message in case of private discussion
     :param list(tuple(str,str)) attachments: list of attachment tuples in the form
@@ -171,17 +170,7 @@ a date or an e-mail address, add CC's addresses as followers, etc.).
         using the subtypes given in the parameters
     :return: Success/Failure
     :rtype: bool
-    
-.. method:: message_subscribe_users(user_ids=None, subtype_ids=None)
 
-    Wrapper on message_subscribe, using users instead of partners.
-    
-    :param list(int) user_ids: IDs of the users that will be subscribed
-        to the record; if ``None``, subscribe the current user instead.
-    :param list(int) subtype_ids: IDs of the subtypes that the channels/partners
-        will be subscribed to
-    :return: Success
-    :rtype: bool
 
 .. method:: message_unsubscribe(partner_ids=None, channel_ids=None)
 
@@ -428,9 +417,6 @@ The urls in the actions list can be generated automatically by calling the
           self-explanatory
         ``unfollow``
           self-explanatory
-        ``workflow``
-          trigger a workflow signal; the signal's name should be
-          provided as the kwarg ``signal``
         ``method``
           call a method on the record; the method's name should be
           provided as the kwarg ``method``
@@ -741,6 +727,65 @@ you to make your alias easily configurable from the record's form view.
                 res = super(BusinessExpense, self).message_new(msg, custom_values=defaults)
                 return res
 
+.. _reference/mixins/mail/activities:
+
+Activities tracking
+-------------------
+
+Activities are actions users have to take on a document like making a phone call
+or organizing a meeting. Activities come with the mail module as they are 
+integrated in the Chatter but are *not bundled with mail.thread*. Activities
+are records of the ``mail.activity`` class, which have a type (``mail.activity.type``),
+name, description, scheduled time (among others). Pending activities are visible
+above the message history in the chatter widget.
+
+You can integrate activities using the ``mail.activity.mixin`` class on your object
+and the specific widgets to display them (via the field ``activity_ids``) in the form
+view and kanban view of your records (``mail_activity`` and ``kanban_activity``
+widgets, respectively).
+
+.. admonition:: Example
+
+    Organizing a business trip is a tedious process and tracking needed activities
+    like ordering plane tickets or a cab for the airport could be useful. To do so,
+    we will add the activities mixin on our model and display the next planned activities
+    in the message history of our trip.
+
+    .. code-block:: python
+
+        class BusinessTrip(models.Model):
+            _name = 'business.trip'
+            _inherit = ['mail.thread', 'mail.activity.mixin']
+            _description = 'Business Trip'
+
+            name = fields.Char()
+            # [...]
+
+    We modify the form view of our trips to display their next activites:
+
+    .. code-block:: xml
+
+        <record id="businness_trip_form" model="ir.ui.view">
+            <field name="name">business.trip.form</field>
+            <field name="model">business.trip</field>
+            <field name="arch" type="xml">
+                <form string="Business Trip">
+                    <!-- Your usual form view goes here -->
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids" widget="mail_followers"/>
+                        <field name="activity_ids" widget="mail_activity"/>
+                        <field name="message_ids" widget="mail_thread"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+
+You can find concrete examples of integration in the following models:
+
+* ``crm.lead`` in the CRM (*crm*) Application
+* ``sale.order`` in the Sales (*sale*) Application
+* ``project.task`` in the Project (*poject*) Application
+
 
 .. _reference/mixins/website:
 
@@ -869,7 +914,7 @@ buttons to website visitors:
 
 .. code-block:: xml
 
-    <div id="website_published_button" class="pull-right"
+    <div id="website_published_button" class="float-right"
          groups="base.group_website_publisher"> <!-- or any other meaningful group -->
         <t t-call="website.publish_management">
           <t t-set="object" t-value="blog_post"/>

@@ -25,22 +25,29 @@ class EventSaleTest(common.TransactionCase):
             'date_begin': '2012-01-01 18:05:15'
         })
 
-        # I create a sale order
+        ticket = self.env['event.event.ticket'].create({
+            'name': 'test_ticket',
+            'product_id': product.id,
+            'event_id': event.id,
+        })
+
+        # I create a sales order
         self.sale_order = self.env['sale.order'].create({
             'partner_id': self.env.ref('base.res_partner_2').id,
             'note': 'Invoice after delivery',
             'payment_term_id': self.env.ref('account.account_payment_term').id
         })
 
-        # In the sale order I add some sale order lines. i choose event product
+        # In the sales order I add some sales order lines. i choose event product
         self.env['sale.order.line'].create({
             'product_id': product.id,
             'price_unit': 190.50,
-            'product_uom': self.env.ref('product.product_uom_unit').id,
+            'product_uom': self.env.ref('uom.product_uom_unit').id,
             'product_uom_qty': 8.0,
             'order_id': self.sale_order.id,
-            'name': 'sale order line',
-            'event_id': event.id
+            'name': 'sales order line',
+            'event_id': event.id,
+            'event_ticket_id': ticket.id,
         })
 
         # In the event registration I add some attendee detail lines. i choose event product

@@ -1,6 +1,6 @@
 {%- set mod = name|snake -%}
 {%- set model = "%s.%s"|format(mod, mod) -%}
-<openerp>
+<odoo>
   <data>
     <!-- explicit list view definition -->
     <!--
@@ -31,6 +31,7 @@
     <record model="ir.actions.server" id="{{mod}}.action_server">
       <field name="name">{{name}} server</field>
       <field name="model_id" ref="model_{{mod}}_{{mod}}"/>
+      <field name="state">code</field>
       <field name="code">
         action = {
           "type": "ir.actions.act_window",
@@ -58,4 +59,4 @@
               action="{{mod}}.action_server"/>
     -->
   </data>
-</openerp>
+</odoo>

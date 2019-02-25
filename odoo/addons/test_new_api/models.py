@@ -4,15 +4,21 @@
 import datetime
 
 from odoo import models, fields, api, _
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
+from odoo.tools import pycompat
 
 
 class Category(models.Model):
     _name = 'test_new_api.category'
+    _description = 'Test New API Category'
+    _order = 'name'
+    _parent_store = True
+    _parent_name = 'parent'
 
     name = fields.Char(required=True)
     color = fields.Integer('Color Index')
-    parent = fields.Many2one('test_new_api.category')
+    parent = fields.Many2one('test_new_api.category', ondelete='cascade')
+    parent_path = fields.Char(index=True)
     root_categ = fields.Many2one(_name, compute='_compute_root_categ')
     display_name = fields.Char(compute='_compute_display_name', inverse='_inverse_display_name')
     dummy = fields.Char(store=False)
@@ -45,7 +51,7 @@ class Category(models.Model):
             categories.append(category[0])
         categories.append(self)
         # assign parents following sequence
-        for parent, child in zip(categories, categories[1:]):
+        for parent, child in pycompat.izip(categories, categories[1:]):
             if parent and child:
                 child.parent = parent
         # assign name of last category, and reassign display_name (to normalize it)
@@ -60,14 +66,15 @@ class Category(models.Model):
 
 class Discussion(models.Model):
     _name = 'test_new_api.discussion'
+    _description = 'Test New API Discussion'
 
     name = fields.Char(string='Title', required=True,
         help="General description of what this discussion is about.")
     moderator = fields.Many2one('res.users')
     categories = fields.Many2many('test_new_api.category',
         'test_new_api_discussion_category', 'discussion', 'category')
-    participants = fields.Many2many('res.users')
-    messages = fields.One2many('test_new_api.message', 'discussion')
+    participants = fields.Many2many('res.users', context={'active_test': False})
+    messages = fields.One2many('test_new_api.message', 'discussion', copy=True)
     message_concat = fields.Text(string='Message concatenate')
     important_messages = fields.One2many('test_new_api.message', 'discussion',
                                          domain=[('important', '=', True)])
@@ -82,6 +89,20 @@ class Discussion(models.Model):
         """Ensure computed O2M domains work as expected."""
         return [("important", "=", True)]
 
+    @api.onchange('name')
+    def _onchange_name(self):
+        # test onchange modifying one2many field values
+        if self.env.context.get('generate_dummy_message') and self.name == '{generate_dummy_message}':
+            # update body of existings messages and emails
+            for message in self.messages:
+                message.body = 'not last dummy message'
+            for message in self.important_messages:
+                message.body = 'not last dummy message'
+            # add new dummy message
+            message_vals = self.messages._add_missing_default_values({'body': 'dummy message', 'important': True})
+            self.messages |= self.messages.new(message_vals)
+            self.important_messages |= self.messages.new(message_vals)
+
     @api.onchange('moderator')
     def _onchange_moderator(self):
         self.participants |= self.moderator
@@ -93,6 +114,7 @@ class Discussion(models.Model):
 
 class Message(models.Model):
     _name = 'test_new_api.message'
+    _description = 'Test New API Message'
 
     discussion = fields.Many2one('test_new_api.discussion', ondelete='cascade')
     body = fields.Text()
@@ -101,11 +123,12 @@ class Message(models.Model):
     display_name = fields.Char(string='Abstract', compute='_compute_display_name')
     size = fields.Integer(compute='_compute_size', search='_search_size')
     double_size = fields.Integer(compute='_compute_double_size')
-    discussion_name = fields.Char(related='discussion.name', string="Discussion Name")
+    discussion_name = fields.Char(related='discussion.name', string="Discussion Name", readonly=False)
     author_partner = fields.Many2one(
         'res.partner', compute='_compute_author_partner',
         search='_search_author_partner')
     important = fields.Boolean()
+    label = fields.Char(translate=True)
 
     @api.one
     @api.constrains('author', 'discussion')
@@ -154,7 +177,7 @@ class Message(models.Model):
     @api.one
     @api.depends('author', 'author.partner_id')
     def _compute_author_partner(self):
-        self.author_partner = author.partner_id
+        self.author_partner = self.author.partner_id
 
     @api.model
     def _search_author_partner(self, operator, value):
@@ -163,6 +186,7 @@ class Message(models.Model):
 
 class EmailMessage(models.Model):
     _name = 'test_new_api.emailmessage'
+    _description = 'Test New API Email Message'
     _inherits = {'test_new_api.message': 'message'}
 
     message = fields.Many2one('test_new_api.message', 'Message',
@@ -175,6 +199,7 @@ class Multi(models.Model):
         one2many field several times.
     """
     _name = 'test_new_api.multi'
+    _description = 'Test New API Multi'
 
     name = fields.Char(related='partner.name', readonly=True)
     partner = fields.Many2one('res.partner')
@@ -193,14 +218,54 @@ class Multi(models.Model):
 
 class MultiLine(models.Model):
     _name = 'test_new_api.multi.line'
+    _description = 'Test New API Multi Line'
 
     multi = fields.Many2one('test_new_api.multi', ondelete='cascade')
     name = fields.Char()
     partner = fields.Many2one('res.partner')
+    tags = fields.Many2many('test_new_api.multi.tag')
+
+
+class MultiTag(models.Model):
+    _name = 'test_new_api.multi.tag'
+    _description = 'Test New API Multi Tag'
+
+    name = fields.Char()
+
+
+class Edition(models.Model):
+    _name = 'test_new_api.creativework.edition'
+    _description = 'Test New API Creative Work Edition'
+
+    name = fields.Char()
+    res_id = fields.Integer(required=True)
+    res_model_id = fields.Many2one('ir.model', required=True)
+    res_model = fields.Char(related='res_model_id.model', store=True, readonly=False)
+
+
+class Book(models.Model):
+    _name = 'test_new_api.creativework.book'
+    _description = 'Test New API Creative Work Book'
+
+    name = fields.Char()
+    editions = fields.One2many(
+        'test_new_api.creativework.edition', 'res_id', domain=[('res_model', '=', _name)]
+    )
+
+
+class Movie(models.Model):
+    _name = 'test_new_api.creativework.movie'
+    _description = 'Test New API Creative Work Movie'
+
+    name = fields.Char()
+    editions = fields.One2many(
+        'test_new_api.creativework.edition', 'res_id', domain=[('res_model', '=', _name)]
+    )
 
 
 class MixedModel(models.Model):
     _name = 'test_new_api.mixed'
+    _description = 'Test New API Mixed'
 
     number = fields.Float(digits=(10, 2), default=3.14)
     date = fields.Date()
@@ -227,7 +292,7 @@ class MixedModel(models.Model):
 
     @api.model
     def _reference_models(self):
-        models = self.env['ir.model'].search([('state', '!=', 'manual')])
+        models = self.env['ir.model'].sudo().search([('state', '!=', 'manual')])
         return [(model.model, model.name)
                 for model in models
                 if not model.model.startswith('ir.')]
@@ -235,6 +300,7 @@ class MixedModel(models.Model):
 
 class BoolModel(models.Model):
     _name = 'domain.bool'
+    _description = 'Boolean Domain'
 
     bool_true = fields.Boolean('b1', default=True)
     bool_false = fields.Boolean('b2', default=False)
@@ -243,19 +309,21 @@ class BoolModel(models.Model):
 
 class Foo(models.Model):
     _name = 'test_new_api.foo'
+    _description = 'Test New API Foo'
 
     name = fields.Char()
-    value1 = fields.Integer()
+    value1 = fields.Integer(change_default=True)
     value2 = fields.Integer()
 
 
 class Bar(models.Model):
     _name = 'test_new_api.bar'
+    _description = 'Test New API Bar'
 
     name = fields.Char()
     foo = fields.Many2one('test_new_api.foo', compute='_compute_foo')
-    value1 = fields.Integer(related='foo.value1')
-    value2 = fields.Integer(related='foo.value2')
+    value1 = fields.Integer(related='foo.value1', readonly=False)
+    value2 = fields.Integer(related='foo.value2', readonly=False)
 
     @api.depends('name')
     def _compute_foo(self):
@@ -265,46 +333,182 @@ class Bar(models.Model):
 
 class Related(models.Model):
     _name = 'test_new_api.related'
+    _description = 'Test New API Related'
 
     name = fields.Char()
     # related fields with a single field
-    related_name = fields.Char(related='name')
-    related_related_name = fields.Char(related='related_name')
+    related_name = fields.Char(related='name', string='A related on Name', readonly=False)
+    related_related_name = fields.Char(related='related_name', string='A related on a related on Name', readonly=False)
 
+    message = fields.Many2one('test_new_api.message')
+    message_name = fields.Text(related="message.body", related_sudo=False, string='Message Body', readonly=False)
+    message_currency = fields.Many2one(related="message.author", string='Message Author', readonly=False)
+
+class ComputeProtected(models.Model):
+    _name = 'test_new_api.compute.protected'
+    _description = 'Test New API Compute Protected'
+
+    foo = fields.Char(default='')
+    bar = fields.Char(compute='_compute_bar', store=True)
+
+    @api.depends('foo')
+    def _compute_bar(self):
+        for record in self:
+            record.bar = record.foo
 
 class ComputeInverse(models.Model):
     _name = 'test_new_api.compute.inverse'
-
-    counts = {'compute': 0, 'inverse': 0}
+    _description = 'Test New API Compute Inversse'
 
     foo = fields.Char()
     bar = fields.Char(compute='_compute_bar', inverse='_inverse_bar', store=True)
 
     @api.depends('foo')
     def _compute_bar(self):
-        self.counts['compute'] += 1
+        self._context.get('log', []).append('compute')
         for record in self:
             record.bar = record.foo
 
     def _inverse_bar(self):
-        self.counts['inverse'] += 1
+        self._context.get('log', []).append('inverse')
         for record in self:
             record.foo = record.bar
 
 
+class MultiComputeInverse(models.Model):
+    """ Model with the same inverse method for several fields. """
+    _name = 'test_new_api.multi_compute_inverse'
+    _description = 'Test New API Multi Compute Inverse'
+
+    foo = fields.Char(default='', required=True)
+    bar1 = fields.Char(compute='_compute_bars', inverse='_inverse_bar1', store=True)
+    bar2 = fields.Char(compute='_compute_bars', inverse='_inverse_bar23', store=True)
+    bar3 = fields.Char(compute='_compute_bars', inverse='_inverse_bar23', store=True)
+
+    @api.depends('foo')
+    def _compute_bars(self):
+        self._context.get('log', []).append('compute')
+        for record in self:
+            substrs = record.foo.split('/') + ['', '', '']
+            record.bar1, record.bar2, record.bar3 = substrs[:3]
+
+    def _inverse_bar1(self):
+        self._context.get('log', []).append('inverse1')
+        for record in self:
+            record.write({'foo': '/'.join([record.bar1, record.bar2, record.bar3])})
+
+    def _inverse_bar23(self):
+        self._context.get('log', []).append('inverse23')
+        for record in self:
+            record.write({'foo': '/'.join([record.bar1, record.bar2, record.bar3])})
+
+
 class CompanyDependent(models.Model):
     _name = 'test_new_api.company'
+    _description = 'Test New API Company'
 
     foo = fields.Char(company_dependent=True)
+    date = fields.Date(company_dependent=True)
+    moment = fields.Datetime(company_dependent=True)
+    tag_id = fields.Many2one('test_new_api.multi.tag', company_dependent=True)
 
 
-class Sparse(models.Model):
-    _name = 'test_new_api.sparse'
+class CompanyDependentAttribute(models.Model):
+    _name = 'test_new_api.company.attr'
+    _description = 'Test New API Company Attribute'
 
-    data = fields.Serialized()
-    boolean = fields.Boolean(sparse='data')
-    integer = fields.Integer(sparse='data')
-    float = fields.Float(sparse='data')
-    char = fields.Char(sparse='data')
-    selection = fields.Selection([('one', 'One'), ('two', 'Two')], sparse='data')
-    partner = fields.Many2one('res.partner', sparse='data')
+    company = fields.Many2one('test_new_api.company')
+    quantity = fields.Integer()
+    bar = fields.Char(compute='_compute_bar', store=True)
+
+    @api.depends('quantity', 'company.foo')
+    def _compute_bar(self):
+        for record in self:
+            record.bar = (record.company.foo or '') * record.quantity
+
+
+class ComputeRecursive(models.Model):
+    _name = 'test_new_api.recursive'
+    _description = 'Test New API Recursive'
+
+    name = fields.Char(required=True)
+    parent = fields.Many2one('test_new_api.recursive', ondelete='cascade')
+    display_name = fields.Char(compute='_compute_display_name', store=True)
+
+    @api.depends('name', 'parent.display_name')
+    def _compute_display_name(self):
+        for rec in self:
+            if rec.parent:
+                rec.display_name = rec.parent.display_name + " / " + rec.name
+            else:
+                rec.display_name = rec.name
+
+
+class ComputeCascade(models.Model):
+    _name = 'test_new_api.cascade'
+    _description = 'Test New API Cascade'
+
+    foo = fields.Char()
+    bar = fields.Char(compute='_compute_bar')               # depends on foo
+    baz = fields.Char(compute='_compute_baz', store=True)   # depends on bar
+
+    @api.depends('foo')
+    def _compute_bar(self):
+        for record in self:
+            record.bar = "[%s]" % (record.foo or "")
+
+    @api.depends('bar')
+    def _compute_baz(self):
+        for record in self:
+            record.baz = "<%s>" % (record.bar or "")
+
+
+class BinarySvg(models.Model):
+    _name = 'test_new_api.binary_svg'
+    _description = 'Test SVG upload'
+
+    name = fields.Char(required=True)
+    image_attachment = fields.Binary(attachment=True)
+    image_wo_attachment = fields.Binary(attachment=False)
+
+
+class MonetaryBase(models.Model):
+    _name = 'test_new_api.monetary_base'
+    _description = 'Monetary Base'
+
+    base_currency_id = fields.Many2one('res.currency')
+    amount = fields.Monetary(currency_field='base_currency_id')
+
+
+class MonetaryRelated(models.Model):
+    _name = 'test_new_api.monetary_related'
+    _description = 'Monetary Related'
+
+    monetary_id = fields.Many2one('test_new_api.monetary_base')
+    currency_id = fields.Many2one('res.currency', related='monetary_id.base_currency_id')
+    amount = fields.Monetary(related='monetary_id.amount')
+
+
+class MonetaryCustom(models.Model):
+    _name = 'test_new_api.monetary_custom'
+    _description = 'Monetary Related Custom'
+
+    monetary_id = fields.Many2one('test_new_api.monetary_base')
+    x_currency_id = fields.Many2one('res.currency', related='monetary_id.base_currency_id')
+    x_amount = fields.Monetary(related='monetary_id.amount')
+
+
+class MonetaryInherits(models.Model):
+    _name = 'test_new_api.monetary_inherits'
+    _description = 'Monetary Inherits'
+    _inherits = {'test_new_api.monetary_base': 'monetary_id'}
+
+    monetary_id = fields.Many2one('test_new_api.monetary_base', required=True, ondelete='cascade')
+    currency_id = fields.Many2one('res.currency')
+
+
+class FieldWithCaps(models.Model):
+    _name = 'test_new_api.field_with_caps'
+    _description = 'Model with field defined with capital letters'
+
+    pArTneR_321_id = fields.Many2one('res.partner')

@@ -2,7 +2,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 from odoo import api, fields, models
-import odoo.addons.decimal_precision as dp
+from odoo.addons import decimal_precision as dp
 
 STATE = [
     ('none', 'Non Member'),
@@ -19,6 +19,7 @@ class MembershipLine(models.Model):
     _name = 'membership.membership_line'
     _rec_name = 'partner'
     _order = 'id desc'
+    _description = 'Membership Line'
 
     partner = fields.Many2one('res.partner', string='Partner', ondelete='cascade', index=True)
     membership_id = fields.Many2one('product.product', string="Membership", required=True)
@@ -68,7 +69,7 @@ class MembershipLine(models.Model):
                 line.state = 'canceled'
                 continue
             istate = fetched[0]
-            if istate in ('draft', 'proforma'):
+            if istate == 'draft':
                 line.state = 'waiting'
             elif istate == 'open':
                 line.state = 'invoiced'

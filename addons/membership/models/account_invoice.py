@@ -3,9 +3,18 @@
 
 from odoo import api, fields, models
 
+from datetime import date
+
 
 class Invoice(models.Model):
     _inherit = 'account.invoice'
+
+    @api.multi
+    def action_cancel_draft(self):
+        self.env['membership.membership_line'].search([
+            ('account_invoice_line', 'in', self.mapped('invoice_line_ids').ids)
+        ]).write({'date_cancel': False})
+        return super(Invoice, self).action_cancel_draft()
 
     @api.multi
     def action_cancel(self):
@@ -14,6 +23,15 @@ class Invoice(models.Model):
             ('account_invoice_line', 'in', self.mapped('invoice_line_ids').ids)
         ]).write({'date_cancel': fields.Date.today()})
         return super(Invoice, self).action_cancel()
+
+    @api.multi
+    def write(self, vals):
+        '''Change the partner on related membership_line'''
+        if 'partner_id' in vals:
+            self.env['membership.membership_line'].search([
+                ('account_invoice_line', 'in', self.mapped('invoice_line_ids').ids)
+            ]).write({'partner': vals['partner_id']})
+        return super(Invoice, self).write(vals)
 
 
 class AccountInvoiceLine(models.Model):
@@ -29,7 +47,8 @@ class AccountInvoiceLine(models.Model):
                 # Product line has changed to a membership product
                 date_from = line.product_id.membership_date_from
                 date_to = line.product_id.membership_date_to
-                if line.invoice_id.date_invoice > date_from and line.invoice_id.date_invoice < date_to:
+                if (line.invoice_id.date_invoice > (date_from or date.min) and
+                        line.invoice_id.date_invoice < (date_to or date.min)):
                     date_from = line.invoice_id.date_invoice
                 MemberLine.create({
                     'partner': line.invoice_id.partner_id.id,
@@ -55,7 +74,10 @@ class AccountInvoiceLine(models.Model):
             # Product line is a membership product
             date_from = invoice_line.product_id.membership_date_from
             date_to = invoice_line.product_id.membership_date_to
-            if invoice_line.invoice_id.date_invoice > date_from and invoice_line.invoice_id.date_invoice < date_to:
+            if (date_from and
+                    date_from <
+                    (invoice_line.invoice_id.date_invoice or date.min) <
+                    (date_to or date.min)):
                 date_from = invoice_line.invoice_id.date_invoice
             MemberLine.create({
                 'partner': invoice_line.invoice_id.partner_id.id,
